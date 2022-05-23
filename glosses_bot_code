@@ -1,0 +1,416 @@
+import telebot
+from telebot import types
+bot = telebot.TeleBot(TOKEN)
+
+@bot.message_handler(commands=['start', 'help'],content_types=['text'])
+def get_text_messages(message):
+    if message.text == "/start":
+        bot.send_message(message.from_user.id, "Введи слово, которое мне нужно проглоссировать")
+        bot.register_next_step_handler(message, get_word)
+    elif message.text == "/help":
+        bot.send_message(message.from_user.id, "Чтобы начать глоссирование, напиши /start")
+    else:
+        bot.send_message(message.from_user.id, "Введи слово, которое мне нужно проглоссировать")
+    
+def get_word(message): #получаем слово в начальной форме
+    global word
+    if " " in message.text:
+            bot.send_message(message.from_user.id, "Введи одно слово, без пробелов!")
+    else:
+            break_count = 0
+            for symbol in message.text:
+                if symbol.lower() in "абвгдеёжзийклмнопрстуфхцчшщэюяъьы-":
+                    break_count +=1 
+            if break_count == len(message.text):
+                bot.send_message(message.from_user.id, "Введи это слово в начальной форме.")
+                word = message.text
+                bot.register_next_step_handler(message, get_pos)
+            else:
+                bot.send_message(message.from_user.id, "Слово должной быть написано кириллицей, без использования специальных символов или других систем графики!")
+                bot.register_next_step_handler(message, get_word)
+
+def get_pos(message): #получаем часть речи слова
+    
+    keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    key_noun = types.KeyboardButton('Имя существительное')
+    key_verb = types.KeyboardButton("Глагол")
+    key_adj = types.KeyboardButton('Имя прилагательное')
+    key_pronoun = types.KeyboardButton('Местоимение')
+    key_adverb = types.KeyboardButton('Наречие')
+    key_part = types.KeyboardButton('Частица')
+    key_conj = types.KeyboardButton('Союз')
+    key_prep = types.KeyboardButton('Предлог')
+    key_participle1 = types.KeyboardButton('Причастие')
+    key_participle2 = types.KeyboardButton('Деепричастие')
+    keyboard.row(key_noun,key_verb,key_adj,key_pronoun,key_adverb,key_part,key_conj, key_prep, key_participle1, key_participle2)
+    bot.send_message(message.from_user.id,'Какая часть речи у этого слова?',reply_markup=keyboard)
+    bot.register_next_step_handler(message, get_pos_2)
+
+    #перенаправляемся с части речи на грамматические характеристики
+def get_pos_2(message):
+    global pos
+    pos = message.text
+    if pos == "Имя существительное":
+        keyboard_noun_type = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_proper = types.KeyboardButton('Имя собственное')
+        key_appellative = types.KeyboardButton('Имя нарицательное')
+        keyboard_noun_type.row (key_proper, key_appellative)
+        bot.send_message(message.from_user.id,'Это имя собственное или имя нарицательное?',reply_markup=keyboard_noun_type)
+        bot.register_next_step_handler(message, case)
+        
+    elif pos == "Глагол":             
+        keyboard_modul = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_ind = types.KeyboardButton('Изъявительное')
+        key_imp = types.KeyboardButton('Повелительное')
+        key_conj = types.KeyboardButton('Условное')
+        keyboard_modul.row(key_ind, key_imp, key_conj)
+        bot.send_message(message.from_user.id, 'Наклонение', reply_markup = keyboard_modul)
+        bot.register_next_step_handler(message, tense)
+        
+    elif pos == "Имя прилагательное" or pos == "Наречие":
+            keyboard_comparison = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+            key_pos = types.KeyboardButton('Положительная степень')
+            key_comp = types.KeyboardButton('Сравнительная степень')
+            key_super = types.KeyboardButton('Превосходная степень')
+            keyboard_comparison.row(key_pos, key_comp, key_super)
+            bot.send_message(message.from_user.id, 'Степень сравнения', reply_markup = keyboard_comparison)
+            if pos == "Имя прилагательное":
+                bot.register_next_step_handler(message, case)
+            elif pos == "Наречие":
+                bot.register_next_step_handler(message, ready)
+                
+    elif pos == "Местоимение":
+        keyboard_type = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_personal = types.KeyboardButton('Личный')
+        key_possesive = types.KeyboardButton('Притяжательный')
+        key_reflexive = types.KeyboardButton('Возвратный')
+        key_relative = types.KeyboardButton('Относительный/вопросительный')
+        key_demonstrative = types.KeyboardButton('Указательный')
+        key_definitive = types.KeyboardButton('Определительный')
+        key_indefinitive = types.KeyboardButton('Неопределенный')
+        key_negative = types.KeyboardButton('Отрицательный')
+        keyboard_type.row(key_personal, key_possesive, key_reflexive, key_relative, key_demonstrative, key_definitive, key_indefinitive, key_negative)
+        bot.send_message(message.from_user.id, 'Разряд местоимения', reply_markup = keyboard_type)
+        bot.register_next_step_handler(message, pronoun_next_step)
+    
+    elif pos == "Предлог" or pos == "Союз" or pos == "Частица":
+        bot.register_next_step_handler(message, ready)
+        
+    elif pos == "Причастие":
+        keyboard_voice = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_act = types.KeyboardButton('Активный залог')
+        key_pass = types.KeyboardButton('Пассивный залог')
+        keyboard_tense.row(key_act, key_pass)
+        bot.send_message(message.from_user.id, 'Залог', reply_markup = keyboard_voice)
+        bot.register_next_step_handler(message, tense)
+        
+    elif pos == "Деепричастие":
+        bot.register_next_step_handler(message, tense)
+        
+def pronoun_next_step(message):
+    global pronoun_type
+    pronoun_type = message.text
+    if pronoun_type in ["Личный","Притяжательный",'Возвратный']:
+        bot.register_next_step_handler(message, case)
+    elif pronoun_type == "Относительный/вопросительный" or pronoun_type == 'Отрицательный' or pronoun_type == 'Указательный' or pronoun_type =='Определительный':
+        if word == "Каков":
+            bot.register_next_step_handler(message, number)
+        else:
+            bot.register_next_step_handler(message, case)
+    elif pronoun_type == 'Неопределенный':
+        if word == "Некто" or word == "Нечто":
+            bot.register_next_step_handler(message, ready) 
+        else:
+            bot.register_next_step_handler(message, case)
+        
+def case(message):
+    global noun_type
+    global comparison
+    global tense
+    if pos == "Имя существительное":
+        noun_type = message.text
+        keyboard_case = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_NOM = types.KeyboardButton('Именительный')
+        key_GEN = types.KeyboardButton('Родительный')
+        key_ACC = types.KeyboardButton('Винительный')
+        key_DAT = types.KeyboardButton('Дательный')
+        key_INS = types.KeyboardButton('Творительный')
+        key_PREP = types.KeyboardButton('Предложный')
+        keyboard_case.row(key_NOM, key_GEN, key_ACC, key_DAT, key_INS, key_PREP)
+        bot.send_message(message.from_user.id,'Падеж', reply_markup=keyboard_case)
+        bot.register_next_step_handler(message, number)
+    elif pos == "Имя прилагательное":
+        comparison = message.text
+        keyboard_case = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_NOM = types.KeyboardButton('Именительный')
+        key_GEN = types.KeyboardButton('Родительный')
+        key_ACC = types.KeyboardButton('Винительный')
+        key_DAT = types.KeyboardButton('Дательный')
+        key_INS = types.KeyboardButton('Творительный')
+        key_PREP = types.KeyboardButton('Предложный')
+        keyboard_case.row(key_NOM, key_GEN, key_ACC, key_DAT, key_INS, key_PREP)
+        bot.send_message(message.from_user.id,'Падеж', reply_markup=keyboard_case)
+        bot.register_next_step_handler(message, number)
+    elif pos == "Местоимение":
+        if pronoun_type =='Возвратный':
+            keyboard_case = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+            key_GEN = types.KeyboardButton('Родительный')
+            key_ACC = types.KeyboardButton('Винительный')
+            key_DAT = types.KeyboardButton('Дательный')
+            key_INS = types.KeyboardButton('Творительный')
+            key_PREP = types.KeyboardButton('Предложный')
+            keyboard_case.row(key_GEN, key_ACC, key_DAT, key_INS, key_PREP)
+            bot.send_message(message.from_user.id,'Падеж', reply_markup=keyboard_case)
+            bot.register_next_step_handler(message, ready)
+        elif pronoun_type == "Относительный/вопросительный" or pronoun_type == 'Неопределенный' or pronoun_type == 'Отрицательный' or pronoun_type == 'Указательный' or pronoun_type =='Определительный':
+            if word in ["Сколько", "Кто", "Что", "Несколько", "Нисколько", "Никто", "Ничто", "Столько"]:
+                keyboard_case = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+                key_NOM = types.KeyboardButton('Именительный')
+                key_GEN = types.KeyboardButton('Родительный')
+                key_ACC = types.KeyboardButton('Винительный')
+                key_DAT = types.KeyboardButton('Дательный')
+                key_INS = types.KeyboardButton('Творительный')
+                key_PREP = types.KeyboardButton('Предложный')
+                keyboard_case.row(key_NOM, key_GEN, key_ACC, key_DAT, key_INS, key_PREP)
+                bot.send_message(message.from_user.id,'Падеж', reply_markup=keyboard_case)
+                bot.register_next_step_handler(message, ready)
+            else:
+                keyboard_case = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+                key_NOM = types.KeyboardButton('Именительный')
+                key_GEN = types.KeyboardButton('Родительный')
+                key_ACC = types.KeyboardButton('Винительный')
+                key_DAT = types.KeyboardButton('Дательный')
+                key_INS = types.KeyboardButton('Творительный')
+                key_PREP = types.KeyboardButton('Предложный')
+                keyboard_case.row(key_NOM, key_GEN, key_ACC, key_DAT, key_INS, key_PREP)
+                bot.send_message(message.from_user.id,'Падеж', reply_markup=keyboard_case)
+                bot.register_next_step_handler(message, number)
+        else:
+            keyboard_case = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+            key_NOM = types.KeyboardButton('Именительный')
+            key_GEN = types.KeyboardButton('Родительный')
+            key_ACC = types.KeyboardButton('Винительный')
+            key_DAT = types.KeyboardButton('Дательный')
+            key_INS = types.KeyboardButton('Творительный')
+            key_PREP = types.KeyboardButton('Предложный')
+            keyboard_case.row(key_NOM, key_GEN, key_ACC, key_DAT, key_INS, key_PREP)
+            bot.send_message(message.from_user.id,'Падеж', reply_markup=keyboard_case)
+            bot.register_next_step_handler(message, number)
+            
+    elif pos == "Причастие":
+        tense = message.text
+        keyboard_case = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_NOM = types.KeyboardButton('Именительный')
+        key_GEN = types.KeyboardButton('Родительный')
+        key_ACC = types.KeyboardButton('Винительный')
+        key_DAT = types.KeyboardButton('Дательный')
+        key_INS = types.KeyboardButton('Творительный')
+        key_PREP = types.KeyboardButton('Предложный')
+        keyboard_case.row(key_NOM, key_GEN, key_ACC, key_DAT, key_INS, key_PREP)
+        bot.send_message(message.from_user.id,'Падеж', reply_markup=keyboard_case)
+        bot.register_next_step_handler(message, number)
+        
+def number(message):
+    global case
+    global tense
+    if pos == "Имя существительное" or pos == "Имя прилагательное" or pos == "Местоимение":
+        if word != "Каков":
+            case = message.text
+        keyboard_number = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_SG = types.KeyboardButton('Единственное число')
+        key_PL = types.KeyboardButton('Множественное число')
+        keyboard_number.row(key_SG, key_PL)
+        bot.send_message(message.from_user.id, 'Число', reply_markup = keyboard_number)
+        if pos == "Имя существительное":
+            bot.register_next_step_handler(message, ready)
+        elif pos == "Имя прилагательное":
+            bot.register_next_step_handler(message, gender)
+        elif pos == "Местоимение" and pronoun_type == "Личный":
+            bot.register_next_step_handler(message, person)
+        elif pos == "Местоимение" and (pronoun_type == "Притяжательный" or pronoun_type == "Относительный/вопросительный" or pronoun_type == "Отрицательный" or pronoun_type == 'Указательный' or pronoun_type =='Определительный'):
+            bot.register_next_step_handler(message, gender)
+    elif pos == "Глагол":
+        if modul == "Повелительное":
+            keyboard_number = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+            key_SG = types.KeyboardButton('Единственное число')
+            key_PL = types.KeyboardButton('Множественное число')
+            keyboard_number.row(key_SG, key_PL)
+            bot.send_message(message.from_user.id, 'Число', reply_markup = keyboard_number)
+            bot.register_next_step_handler(message, ready)
+        elif modul == "Изъявительное":
+            tense = message.text
+            keyboard_number = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+            key_SG = types.KeyboardButton('Единственное число')
+            key_PL = types.KeyboardButton('Множественное число')
+            keyboard_number.row(key_SG, key_PL)
+            bot.send_message(message.from_user.id, 'Число', reply_markup = keyboard_number)
+            bot.register_next_step_handler(message, gender)
+    elif pos == "Причастие":
+        case = message.text
+        keyboard_number = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_SG = types.KeyboardButton('Единственное число')
+        key_PL = types.KeyboardButton('Множественное число')
+        keyboard_number.row(key_SG, key_PL)
+        bot.send_message(message.from_user.id, 'Число', reply_markup = keyboard_number)
+        bot.register_next_step_handler(message, gender)
+
+def tense(message):
+    global modul
+    global voice
+    if pos == "Глагол":
+        modul = message.text
+        if modul == "Изъявительное":
+            keyboard_tense = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+            key_past = types.KeyboardButton('Прошедшее время')
+            key_pres = types.KeyboardButton('Настоящее время')
+            key_fut = types.KeyboardButton('Будущее время')
+            keyboard_tense.row(key_past, key_pres, key_fut)
+            bot.send_message(message.from_user.id, 'Время', reply_markup = keyboard_tense)
+            bot.register_next_step_handler(message, number)
+            
+        elif modul == "Повелительное":
+            bot.register_next_step_handler(message, number)
+    elif pos == "Причастие":
+        voice = message.text
+        keyboard_tense = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_past = types.KeyboardButton('Прошедшее время')
+        key_pres = types.KeyboardButton('Настоящее время')
+        key_fut = types.KeyboardButton('Будущее время')
+        keyboard_tense.row(key_past, key_pres, key_fut)
+        bot.send_message(message.from_user.id, 'Время', reply_markup = keyboard_tense)
+        bot.register_next_step_handler(message, case)
+    elif pos == "Деепричастие":
+        bot.register_next_step_handler(message, ready)
+        keyboard_tense = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_past = types.KeyboardButton('Прошедшее время')
+        key_pres = types.KeyboardButton('Настоящее время')
+        key_fut = types.KeyboardButton('Будущее время')
+        keyboard_tense.row(key_past, key_pres, key_fut)
+        bot.send_message(message.from_user.id, 'Время', reply_markup = keyboard_tense)   
+        bot.register_next_step_handler(message, ready)
+        
+def gender(message):
+    global number
+    global person
+    if pos == "Глагол":
+        number = message.text
+        if tense == "Прошедшее время":
+            if number == "Единственное число":
+                keyboard_gender = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+                key_f = types.KeyboardButton('Женский род')
+                key_n = types.KeyboardButton('Средний род')
+                key_m = types.KeyboardButton('Мужской род')
+                keyboard_gender.row(key_f, key_n, key_m)
+                bot.send_message(message.from_user.id, 'Род', reply_markup = keyboard_gender)
+                bot.register_next_step_handler(message, ready)            
+            elif number == "Множественное число":
+                bot.register_next_step_handler(message, ready)         
+        elif tense == "Будущее время" or tense == "Настоящее время":
+            bot.register_next_step_handler(message, person)
+    elif pos == "Имя прилагательное" or pos == "Причастие":
+        number = message.text
+        if number == "Единственное число":
+                keyboard_gender = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+                key_f = types.KeyboardButton('Женский род')
+                key_n = types.KeyboardButton('Средний род')
+                key_m = types.KeyboardButton('Мужской род')
+                keyboard_gender.row(key_f, key_n, key_m)
+                bot.send_message(message.from_user.id, 'Род', reply_markup = keyboard_gender)
+                bot.register_next_step_handler(message, ready)            
+        elif number == "Множественное число":
+                bot.register_next_step_handler(message, ready)  
+    elif pos == "Местоимение":
+        if pronoun_type == "Личный":
+            person = message.text
+            if person == "3-е лицо" and number == "Единственное число":
+                keyboard_gender = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+                key_f = types.KeyboardButton('Женский род')
+                key_n = types.KeyboardButton('Средний род')
+                key_m = types.KeyboardButton('Мужской род')
+                keyboard_gender.row(key_f, key_n, key_m)
+                bot.send_message(message.from_user.id, 'Род', reply_markup = keyboard_gender)
+                bot.register_next_step_handler(message, ready)  
+        elif pronoun_type == "Притяжательный" or pronoun_type == "Относительный/вопросительный" or pronoun_type == "Отрицательный" or pronoun_type == 'Указательный' or pronoun_type =='Определительный':
+            number = message.text
+            if number == "Единственное число":
+                    keyboard_gender = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+                    key_f = types.KeyboardButton('Женский род')
+                    key_n = types.KeyboardButton('Средний род')
+                    key_m = types.KeyboardButton('Мужской род')
+                    keyboard_gender.row(key_f, key_n, key_m)
+                    bot.send_message(message.from_user.id, 'Род', reply_markup = keyboard_gender)
+                    bot.register_next_step_handler(message, ready) 
+            else:
+                    bot.register_next_step_handler(message, ready) 
+                    
+                    
+        
+        
+def person(message):
+    global number
+    if pos == "Глагол":
+        keyboard_person = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_1 = types.KeyboardButton('1-е лицо')
+        key_2 = types.KeyboardButton('2-е лицо')
+        key_3 = types.KeyboardButton('3-е лицо')
+        keyboard_person.row(key_1, key_2, key_3)
+        bot.send_message(message.from_user.id, 'Лицо', reply_markup = keyboard_person)
+        bot.register_next_step_handler(message, ready)
+    elif pos == "Местоимение":
+        number == message.text 
+        keyboard_person = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        key_1 = types.KeyboardButton('1-е лицо')
+        key_2 = types.KeyboardButton('2-е лицо')
+        key_3 = types.KeyboardButton('3-е лицо')
+        keyboard_person.row(key_1, key_2, key_3)
+        bot.send_message(message.from_user.id, 'Лицо', reply_markup = keyboard_person)
+        bot.register_next_step_handler(message, gender)
+            
+def ready(message):
+    global number
+    global gender
+    global person
+    global comparison
+    global tense
+    global case
+    if pos == "Имя существительное":
+        number = message.text
+        #bot.send_message(message.from_user.id, pos)
+        #bot.send_message(message.from_user.id, noun_type)
+        #bot.send_message(message.from_user.id, case)
+        #bot.send_message(message.from_user.id, number)
+    elif pos == "Глагол":
+        if modul == "Повелительное":
+            number = message.text
+            pos, modul, number
+        elif modul == "Изъявительное":
+            if tense == "Прошедшее время" and number == "Единственное число":
+                gender = message.text
+            elif tense == "Прошедшее время" and number != "Единственное число":
+                --
+            elif tense == "Будущее время" or tense == "Настоящее время":
+                person = message.text
+    elif pos == "Наречие":
+        comparison == message.text
+    elif pos == "Имя прилагательное" or pos == "Причастие":
+        if number == "Единственное число":
+            gender = message.text
+        else:
+    elif pos == "Местоимение":
+        if (pronoun_type == "Личный" and person == "3-е лицо" and number == "Единственное число") or (pronoun_type == "Притяжательный" and number == "Единственное число"):
+            gender = message.text
+        elif pronoun_type =='Возвратный':
+            case = message.text
+        elif pronoun_type == "Относительный/вопросительный" or pronoun_type == 'Неопределенный' or pronoun_type == "Отрицательный" or pronoun_type == 'Указательный' or pronoun_type =='Определительный':
+            if word in ["Сколько", "Кто", "Что", "Несколько", "Нисколько", "Никто", "Ничто", "Столько"]:
+                case = message.text
+            elif word == "Некто" or word == "Нечто":
+                
+            else: 
+                gender = message.text
+    elif pos == "Деепричастие":
+        tense = message.text
+                
+            
+bot.polling(none_stop=True, interval=0)
+
